@@ -8,7 +8,7 @@ npm install --prefix server
 ## Environment
 Create `server/.env`:
 ```
-MONGO_URI="mongodb+srv://<username>:<Password>@cluster0.xvl2i.mongodb.net/?appName=Cluster0"
+MONGO_URI="mongodb+srv://todoUser:Abc1234@cluster0.xvl2i.mongodb.net/?appName=Cluster0"
 PORT=5000
 ```
 
