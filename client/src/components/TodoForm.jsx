@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function TodoForm({ title, description, setTitle, setDescription, onCreate }) {
+function TodoForm({ title, description, setTitle, setDescription, onCreate }) {
   const [submitted, setSubmitted] = useState(false)
   const TITLE_MIN = 3
   const TITLE_MAX = 80
@@ -69,3 +69,5 @@ export default function TodoForm({ title, description, setTitle, setDescription,
     </form>
   )
 }
+
+export default TodoForm
