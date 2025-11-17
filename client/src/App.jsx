@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
 import { getTodos, createTodo, updateTodo, toggleDone, deleteTodo } from './api/todos'
+import Header from './components/Header'
+import TodoForm from './components/TodoForm'
+import TodoList from './components/TodoList'
+import EmptyState from './components/EmptyState'
+import Spinner from './components/Spinner'
 
 function App() {
   const [todos, setTodos] = useState([])
@@ -10,13 +15,49 @@ function App() {
   const [editingId, setEditingId] = useState(null)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
+  const [todoOrder, setTodoOrder] = useState([])
+
+  const sortTodos = (items) => {
+    return [...items].sort((a, b) => {
+      if (!!a.done !== !!b.done) return a.done ? 1 : -1
+      const aTime = typeof a.createdAt === 'number' ? a.createdAt : new Date(a.createdAt).getTime()
+      const bTime = typeof b.createdAt === 'number' ? b.createdAt : new Date(b.createdAt).getTime()
+      return bTime - aTime
+    })
+  }
+
+  const computeInitialOrder = (items) => {
+    const incomplete = items.filter((t) => !t.done)
+    const defaultOrder = incomplete
+      .sort((a, b) => {
+        const aTime = typeof a.createdAt === 'number' ? a.createdAt : new Date(a.createdAt).getTime()
+        const bTime = typeof b.createdAt === 'number' ? b.createdAt : new Date(b.createdAt).getTime()
+        return bTime - aTime
+      })
+      .map((t) => t._id)
+    const saved = (() => {
+      try {
+        const raw = localStorage.getItem('todoOrder')
+        return raw ? JSON.parse(raw) : []
+      } catch {
+        return []
+      }
+    })()
+    const setIds = new Set(incomplete.map((t) => t._id))
+    const filteredSaved = saved.filter((id) => setIds.has(id))
+    const missing = defaultOrder.filter((id) => !filteredSaved.includes(id))
+    return [...filteredSaved, ...missing]
+  }
 
   const load = async () => {
     setLoading(true)
     setError('')
     try {
       const data = await getTodos()
-      setTodos(data)
+      setTodos(sortTodos(data))
+      const initialOrder = computeInitialOrder(data)
+      setTodoOrder(initialOrder)
+      localStorage.setItem('todoOrder', JSON.stringify(initialOrder))
     } catch (e) {
       setError('Failed to load todos')
     } finally {
@@ -30,12 +71,19 @@ function App() {
 
   const onCreate = async (e) => {
     e.preventDefault()
-    if (!title.trim()) return
+    const TITLE_MAX = 80
+    const DESC_MAX = 240
+    const tTrim = title.trim()
+    const dTrim = description.trim()
+    if (!tTrim || tTrim.length > TITLE_MAX || dTrim.length > DESC_MAX) return
     setLoading(true)
     setError('')
     try {
       const t = await createTodo({ title, description })
-      setTodos([t, ...todos])
+      setTodos(sortTodos([t, ...todos]))
+      const nextOrder = [t._id, ...todoOrder]
+      setTodoOrder(nextOrder)
+      localStorage.setItem('todoOrder', JSON.stringify(nextOrder))
       setTitle('')
       setDescription('')
     } catch (e) {
@@ -54,9 +102,17 @@ function App() {
   const onUpdate = async (id) => {
     setLoading(true)
     setError('')
+    const TITLE_MAX = 80
+    const DESC_MAX = 240
+    const tTrim = editTitle.trim()
+    const dTrim = editDescription.trim()
+    if (!tTrim || tTrim.length > TITLE_MAX || dTrim.length > DESC_MAX) {
+      setLoading(false)
+      return
+    }
     try {
       const updated = await updateTodo(id, { title: editTitle, description: editDescription })
-      setTodos(todos.map((t) => (t._id === id ? updated : t)))
+      setTodos(sortTodos(todos.map((t) => (t._id === id ? updated : t))))
       setEditingId(null)
       setEditTitle('')
       setEditDescription('')
@@ -71,7 +127,17 @@ function App() {
     setError('')
     try {
       const updated = await toggleDone(id)
-      setTodos(todos.map((t) => (t._id === id ? updated : t)))
+      const nextTodos = todos.map((t) => (t._id === id ? updated : t))
+      setTodos(sortTodos(nextTodos))
+      if (updated.done) {
+        const nextOrder = todoOrder.filter((x) => x !== id)
+        setTodoOrder(nextOrder)
+        localStorage.setItem('todoOrder', JSON.stringify(nextOrder))
+      } else {
+        const nextOrder = [id, ...todoOrder.filter((x) => x !== id)]
+        setTodoOrder(nextOrder)
+        localStorage.setItem('todoOrder', JSON.stringify(nextOrder))
+      }
     } catch (e) {
       setError('Failed to toggle todo')
     }
@@ -82,7 +148,10 @@ function App() {
     setError('')
     try {
       await deleteTodo(id)
-      setTodos(todos.filter((t) => t._id !== id))
+      setTodos(sortTodos(todos.filter((t) => t._id !== id)))
+      const nextOrder = todoOrder.filter((x) => x !== id)
+      setTodoOrder(nextOrder)
+      localStorage.setItem('todoOrder', JSON.stringify(nextOrder))
     } catch (e) {
       setError('Failed to delete todo')
     } finally {
@@ -90,41 +159,81 @@ function App() {
     }
   }
 
+  const reorderActive = (fromIndex, toIndex) => {
+    const next = [...todoOrder]
+    const [moved] = next.splice(fromIndex, 1)
+    next.splice(toIndex, 0, moved)
+    setTodoOrder(next)
+    localStorage.setItem('todoOrder', JSON.stringify(next))
+  }
+
+  const activeTodos = todos.filter((t) => !t.done)
+  const completedTodos = todos.filter((t) => !!t.done)
+  const orderIndex = new Map(todoOrder.map((id, i) => [id, i]))
+  const orderedActive = [...activeTodos].sort((a, b) => (orderIndex.get(a._id) ?? 0) - (orderIndex.get(b._id) ?? 0))
+
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: 16, fontFamily: 'system-ui, sans-serif' }}>
-      <h1>TODOs</h1>
-      <form onSubmit={onCreate} style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 2fr auto' }}>
-        <input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <input placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-        <button type="submit">Add</button>
-      </form>
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900">
+      <Header />
+      <main className="mx-auto max-w-3xl px-4 py-6">
+        <TodoForm title={title} description={description} setTitle={setTitle} setDescription={setDescription} onCreate={onCreate} />
 
-      {loading && <p>Loading...</p>}
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
+        <div className="mt-4">
+          {loading && <Spinner />}
+          {error && (
+            <div role="alert" className="card p-4 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300">
+              {error}
+            </div>
+          )}
 
-      <ul style={{ listStyle: 'none', padding: 0, marginTop: 16 }}>
-        {todos.map((t) => (
-          <li key={t._id} style={{ display: 'grid', gap: 8, alignItems: 'center', gridTemplateColumns: 'auto 1fr 2fr auto auto', padding: 8, borderBottom: '1px solid #eee' }}>
-            <input type="checkbox" checked={!!t.done} onChange={() => onToggle(t._id)} />
-            {editingId === t._id ? (
-              <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
-            ) : (
-              <span style={{ textDecoration: t.done ? 'line-through' : 'none', opacity: t.done ? 0.6 : 1 }}>{t.title}</span>
-            )}
-            {editingId === t._id ? (
-              <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
-            ) : (
-              <span style={{ opacity: t.done ? 0.6 : 1 }}>{t.description}</span>
-            )}
-            {editingId === t._id ? (
-              <button onClick={() => onUpdate(t._id)}>Save</button>
-            ) : (
-              <button onClick={() => startEdit(t)}>Edit</button>
-            )}
-            <button onClick={() => onDelete(t._id)}>Delete</button>
-          </li>
-        ))}
-      </ul>
+          {todos.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="space-y-6">
+              <section>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">To do</h2>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">{orderedActive.length}</span>
+                </div>
+                <TodoList
+                  todos={orderedActive}
+                  enableDrag={true}
+                  onReorder={reorderActive}
+                  editingId={editingId}
+                  editTitle={editTitle}
+                  editDescription={editDescription}
+                  setEditTitle={setEditTitle}
+                  setEditDescription={setEditDescription}
+                  startEdit={startEdit}
+                  onUpdate={onUpdate}
+                  onToggle={onToggle}
+                  onDelete={onDelete}
+                />
+              </section>
+
+              <section>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-indigo-700 dark:text-indigo-300">Completed</h2>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">{completedTodos.length}</span>
+                </div>
+                <TodoList
+                  todos={completedTodos}
+                  enableDrag={false}
+                  editingId={editingId}
+                  editTitle={editTitle}
+                  editDescription={editDescription}
+                  setEditTitle={setEditTitle}
+                  setEditDescription={setEditDescription}
+                  startEdit={startEdit}
+                  onUpdate={onUpdate}
+                  onToggle={onToggle}
+                  onDelete={onDelete}
+                />
+              </section>
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   )
 }
