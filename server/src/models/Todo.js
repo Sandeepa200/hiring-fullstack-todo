@@ -6,7 +6,8 @@ const todoSchema = new Schema(
     description: { type: String, default: '' },
     done: { type: Boolean, default: false }
   },
-  { timestamps: true }
+  { timestamps: true },
+  { versionKey: false }
 )
 
 module.exports = model('Todo', todoSchema)
