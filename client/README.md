@@ -14,3 +14,4 @@ Frontend runs at `http://localhost:5173`.
 ## Notes
 - Backend base URL: `http://localhost:5000/api/todos`
 - Axios API in `src/api/todos.js`
+- Task order (active list) is saved in browser storage (`localStorage`) and not persisted to MongoDB Atlas.
