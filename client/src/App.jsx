@@ -71,11 +71,12 @@ function App() {
 
   const onCreate = async (e) => {
     e.preventDefault()
+    const TITLE_MIN = 3
     const TITLE_MAX = 80
     const DESC_MAX = 240
     const tTrim = title.trim()
     const dTrim = description.trim()
-    if (!tTrim || tTrim.length > TITLE_MAX || dTrim.length > DESC_MAX) return
+    if (!tTrim || tTrim.length < TITLE_MIN || tTrim.length > TITLE_MAX || dTrim.length > DESC_MAX) return
     setLoading(true)
     setError('')
     try {
