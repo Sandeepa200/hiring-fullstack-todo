@@ -30,7 +30,7 @@ export default function TodoItem({ t, editingId, editTitle, editDescription, set
             {showTitleError && <p className="-mt-1 mb-2 text-xs text-red-600 dark:text-red-400">{titleError}</p>}
           </>
         ) : (
-          <div className={`font-semibold break-words ${t.done ? 'line-through decoration-2 decoration-indigo-500 dark:decoration-indigo-400 text-gray-600 dark:text-gray-300' : ''}`}>{t.title}</div>
+          <div className={`font-semibold break-words ${t.done ? 'line-through decoration-2 decoration-red-500 dark:decoration-red-400 text-gray-600 dark:text-gray-300' : ''}`}>{t.title}</div>
         )}
         {isEditing ? (
           <>
@@ -45,7 +45,7 @@ export default function TodoItem({ t, editingId, editTitle, editDescription, set
             {showDescError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{descError}</p>}
           </>
         ) : (
-          <p className={`text-sm text-gray-600 dark:text-gray-300 break-words ${t.done ? 'line-through decoration-2 decoration-indigo-400' : ''}`}>{t.description}</p>
+          <p className={`text-sm text-gray-600 dark:text-gray-300 break-words ${t.done ? 'line-through decoration-2 decoration-red-400' : ''}`}>{t.description}</p>
         )}
       </div>
 
