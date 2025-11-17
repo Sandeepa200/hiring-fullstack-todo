@@ -10,8 +10,8 @@ connectDB()
 
 const app = express()
 
-app.use(cors())
-app.use(express.json())
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }))
+app.use(express.json({ limit: '1mb' }))
 
 app.get('/', (req, res) => {
   res.json({ message: 'Server is running' })

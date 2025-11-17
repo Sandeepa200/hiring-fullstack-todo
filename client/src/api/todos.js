@@ -1,8 +1,7 @@
 import axios from 'axios'
 
-const api = axios.create({
-  baseURL: 'http://localhost:5000/api/todos'
-})
+const baseUrl = (import.meta?.env?.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')
+const api = axios.create({ baseURL: `${baseUrl}/api/todos` })
 
 export const getTodos = async () => {
   const res = await api.get('/')
